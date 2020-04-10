@@ -10,3 +10,5 @@ cython
 dtaidistance
 fastdtw
 tqdm
+PyWavelets
+xgboost
