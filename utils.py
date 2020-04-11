@@ -1,5 +1,6 @@
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold
+
 from sklearn.preprocessing import LabelEncoder
 import torch
 from torch.utils.data import TensorDataset, DataLoader
@@ -7,18 +8,55 @@ from torch.optim.lr_scheduler import _LRScheduler
 import matplotlib.pyplot as plt
 
 def create_datasets(X, y, test_size=0.2, time_dim_first=False):
-    enc = LabelEncoder()
-    y_enc = enc.fit_transform(y)
+    # enc = LabelEncoder()
+    # y_enc = enc.fit_transform(y)
+    y_enc = y
     X_grouped = create_grouped_array(X)
     if time_dim_first:
         X_grouped = X_grouped.transpose(0, 2, 1)
-    X_train, X_valid, y_train, y_valid = train_test_split(X_grouped, y_enc, test_size=test_size)
-    X_train, X_valid = [torch.tensor(arr, dtype=torch.float32) for arr in (X_train, X_valid)]
-    y_train, y_valid = [torch.tensor(arr, dtype=torch.long) for arr in (y_train, y_valid)]
+    X_train, X_val, y_train, y_val = train_test_split(X_grouped, y_enc, test_size=test_size)
+    X_train, X_val = [torch.tensor(arr, dtype=torch.float32) for arr in (X_train, X_val)]
+    y_train, y_val = [torch.tensor(arr, dtype=torch.long) for arr in (y_train, y_val)]
     train_ds = TensorDataset(X_train, y_train)
-    valid_ds = TensorDataset(X_valid, y_valid)
-    return train_ds, valid_ds, enc
+    valid_ds = TensorDataset(X_val, y_val)
+    return train_ds, valid_ds
 
+def create_datasets_2(X, y, cv=2, time_dim_first=False):
+
+    X_grouped = create_grouped_array(X)
+    if time_dim_first:
+        X_grouped = X_grouped.transpose(0, 2, 1)
+
+
+    train_folds = []
+    val_folds = []
+
+    # do a simple train\test split
+    if cv==1:
+        X_train, X_val, y_train, y_val = train_test_split(X_grouped, y, stratify=y, test_size=0.2)
+        X_train, X_val = [torch.tensor(arr, dtype=torch.float32) for arr in (X_train, X_val)]
+        y_train, y_val = [torch.tensor(arr, dtype=torch.long) for arr in (y_train, y_val)]
+        train_ds = TensorDataset(X_train, y_train)
+        val_ds = TensorDataset(X_val, y_val)
+
+        train_folds.append(train_ds)
+        val_folds.append(val_ds)
+    # do a kfold split
+    else:
+        skf = StratifiedKFold(n_splits=cv)
+
+        for train_index, val_index in skf.split(X_grouped, y):
+            X_train, X_val = X_grouped[train_index], X_grouped[val_index]
+            y_train, y_val = y[train_index], y[val_index]
+            X_train, X_val = [torch.tensor(arr, dtype=torch.float32) for arr in (X_train, X_val)]
+            y_train, y_val = [torch.tensor(arr, dtype=torch.long) for arr in (y_train, y_val)]
+            train_ds = TensorDataset(X_train, y_train)
+            val_ds = TensorDataset(X_val, y_val)
+
+            train_folds.append(train_ds)
+            val_folds.append(val_ds)
+
+    return train_folds, val_folds
 
 def create_grouped_array(data, group_col='series_id'):
     X_grouped = np.row_stack([

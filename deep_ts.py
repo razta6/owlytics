@@ -21,8 +21,8 @@ class LSTMClassifier(nn.Module):
     def forward(self, x):
         h0, c0 = self.init_hidden(x)
         out, (hn, cn) = self.rnn(x, (h0, c0))
-        out = self.fc(out[:, -1, :])
-        out = self.fc(out)
+        out = F.relu(self.fc(out[:, -1, :]))
+        out = F.relu(self.fc(out))
         out = self.fc_out(out)
         return out
 
@@ -82,3 +82,5 @@ def Trainer(model, trn_dl, val_dl, n_epochs, sched, opt, criterion, device, pati
             if trials >= patience:
                 print(f'Early stopping on epoch {epoch}')
                 break
+
+    return best_score
