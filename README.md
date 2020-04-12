@@ -12,4 +12,3 @@
 ## Installation
 - clone the repo
 - install requirements: pip install -r requirements.txt
-- 
