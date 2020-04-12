@@ -8,30 +8,33 @@ from sklearn.metrics import f1_score
 
 class LSTMClassifier(nn.Module):
 
-    def __init__(self, input_dim, hidden_dim, layer_dim, output_dim):
+    def __init__(self, input_dim, hidden_dim, layer_dim, output_dim, device):
         super().__init__()
         self.hidden_dim = hidden_dim
         self.layer_dim = layer_dim
         self.rnn = nn.LSTM(input_dim, hidden_dim, layer_dim, batch_first=True)
-        self.fc = nn.Linear(hidden_dim, hidden_dim)
+        # self.fc1 = nn.Linear(hidden_dim, hidden_dim)
+        # self.fc2 = nn.Linear(hidden_dim, hidden_dim)
         self.fc_out = nn.Linear(hidden_dim, output_dim)
         self.batch_size = None
         self.hidden = None
+        self.device = device
 
     def forward(self, x):
         h0, c0 = self.init_hidden(x)
         out, (hn, cn) = self.rnn(x, (h0, c0))
-        out = F.relu(self.fc(out[:, -1, :]))
-        out = F.relu(self.fc(out))
+        out = out[:, -1, :]
+        # out = F.relu(self.fc1(out))
+        # out = F.relu(self.fc2(out))
         out = self.fc_out(out)
         return out
 
     def init_hidden(self, x):
         h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim)
         c0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim)
-        return [t.cuda() for t in (h0, c0)]
+        return [t.to(self.device) for t in (h0, c0)]
 
-def Trainer(model, trn_dl, val_dl, n_epochs, sched, opt, criterion, device, patience):
+def Trainer(model, trn_dl, val_dl, n_epochs, sched, opt, criterion, device, patience, dst_path="best.pth"):
     print('Start model training')
     print(model)
     trials = 0
@@ -75,7 +78,7 @@ def Trainer(model, trn_dl, val_dl, n_epochs, sched, opt, criterion, device, pati
         if score > best_score:
             trials = 0
             best_score = score
-            torch.save(model.state_dict(), 'best.pth')
+            torch.save(model.state_dict(), dst_path)
             print(f'Epoch {epoch} best model saved with f1_score: {best_score:2.2%}')
         else:
             trials += 1

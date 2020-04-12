@@ -5,10 +5,7 @@ matplotlib
 seaborn
 jupyter
 scipy
-cython
 dtaidistance
-fastdtw
 tqdm
 PyWavelets
-xgboost
 torch=1.4.0
